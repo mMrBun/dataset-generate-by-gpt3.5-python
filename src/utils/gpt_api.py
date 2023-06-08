@@ -1,6 +1,6 @@
 import openai
 
-openai.api_key = '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'
+openai.api_key = 'sk-xxx'
 
 
 def chat(prompt, model='gpt-3.5-turbo', system_settings='你是一位得力助手,尽最大努力为用户提供帮助', temperature=0.7):
