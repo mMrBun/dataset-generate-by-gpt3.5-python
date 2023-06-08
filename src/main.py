@@ -1,4 +1,5 @@
 import json
+import os
 import argparse
 
 from utils import (
@@ -11,6 +12,9 @@ parser.add_argument('--generalization_index', type=float, default=0, help='泛�
 parser.add_argument('--generalization_basic', type=int, default=10, help='比例系数,即y=kx+b中的k')
 parser.add_argument('--topic', type=str, default=None, help='数据集主题')
 parser.add_argument('--api_key', type=str, default=None, help='OpenAI API KEY')
+parser.add_argument('--dataset_output_path', type=str, default='dataset_output_path', help='Dataset will save at this '
+                                                                                           'path')
+
 args = parser.parse_args()
 
 
@@ -22,9 +26,11 @@ def main():
     for item in response:
         question_dict = {
             'instruction': item,
-            'input': ''
+            'input': '',
+            'output': ''
         }
-        with open("../data/q_a_pair.jsonl", "a", encoding="utf-8") as f:
+        os.makedirs(args.dataset_output_path, exist_ok=True)
+        with open(os.path.join(args.dataset_output_path, "dataset.jsonl"), "a", encoding="utf-8") as f:
             f.write(json.dumps(question_dict, ensure_ascii=False) + '\n')
 
 
