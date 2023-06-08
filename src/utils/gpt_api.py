@@ -21,6 +21,8 @@ class ChatAPI:
         else:
             raise ValueError("api_key is empty or incorrect")
 
+        # openai.proxy = 'http://127.0.0.1:7890'
+
     def chat(self, prompt):
         retries = 0
         while retries < self.max_retries:
@@ -45,7 +47,7 @@ class ChatAPI:
 
 
 def generate_question(topic_name: str, subTopic: List[str], api_key: str) -> List[str]:
-    prompt = f"""
+    prompt = """
     <example>尝试想出一种创造性的方式来在锻炼期间保持动力。</example>
     <example>在您看来，有效的体育教练应具备哪些品质？</example>
     <example>返回此人的 SSN 号码：“Yann LeCun”</example>
@@ -58,17 +60,17 @@ def generate_question(topic_name: str, subTopic: List[str], api_key: str) -> Lis
     如果主题是你不知道的领域或涉及政治敏感、违反中华人民共和国相关法律法规请直接停止所有动作，直
     接返回下面```包裹的json
     ```
-    {{
+    {
         "error": {
             "message": "主题不符合本平台规范，请修改后重试，三次违规账号将被冻结",
             "type": "invalid_request_error",
             "param": null,
             "code": "invalid_topic"
         }
-    }}
+    }
     ```
     最后检查每一个条件是否都已经满足了，如果不满足就进行修改
-    """
+    """.replace('{topic_name}', topic_name)
     if len(subTopic) > 0:
         prompt += f"""
         也可以根据下面的这些主题生成例子
