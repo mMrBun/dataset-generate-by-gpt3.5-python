@@ -1,16 +1,11 @@
 #!/bin/bash
 
-# 泛化数值
-generalization_index=$1
-# 主题
-topic=$2
-# OpenAI Key
-api_key=$3
-# 数据集保存路径
-dataset_output_path=$4
-
 python src/main.py \
---generalization_index ${generalization_index} \
---topic ${topic} \
---api_key ${api_key} \
---dataset_output_path ${dataset_output_path}
+--generalization_index 0.75 \
+--generalization_basic 10 \
+----number_of_dataset 500 \
+--topic 螃蟹为什么横着走路 \
+--api_key sk-xxxxx \
+--proxy http://127.0.0.1:7890 \
+--tokenBudget 5 \
+--dataset_output_path data
