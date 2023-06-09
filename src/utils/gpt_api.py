@@ -4,6 +4,7 @@ import openai
 import time
 from typing import List
 from .format import extract_list
+from .save_dataset import write_dict_list_to_file
 
 
 class BudgetTracker:
@@ -51,13 +52,7 @@ class ChatAPI:
                     ],
                     temperature=self.temperature
                 )
-                tokens_used = response.usage['total_tokens']
-                budget_tracker.total_tokens_used += tokens_used
-                # 判断是否超过预算
-                if budget_tracker.is_budget_exceeded():
-                    print("Token budget exceeded!")
-                    sys.exit(0)
-                return response.choices[0].message.content
+                return response
             except Exception as e:
                 print(f"An error occurred: {str(e)}")
                 retries += 1
@@ -68,7 +63,7 @@ class ChatAPI:
                     raise ValueError("Failed to get a valid response after maximum retries")
 
 
-def generate_question(topic_name: str, subTopic: List[str], api_key: str, budget_tracker: BudgetTracker) -> List[str]:
+def generate_question(topic_name: str, sub_topic: List[str], api_key: str, budget_tracker: BudgetTracker) -> List[str]:
     if not topic_name:
         raise ValueError("param topic is required,not None")
     prompt = """
@@ -88,15 +83,15 @@ def generate_question(topic_name: str, subTopic: List[str], api_key: str, budget
     ```
     最后检查每一个条件是否都已经满足了，如果不满足就进行修改
     """.replace('{topic_name}', topic_name)
-    if len(subTopic) > 0:
+    if len(sub_topic) > 0:
         prompt += f"""
         也可以根据下面的这些主题生成例子
-        {subTopic}
+        {sub_topic}
         """
     print("正在生成问题集......")
     api = ChatAPI(api_key=api_key, system_settings='你是一个得力的助手,但你要尽可能根据指令简洁的回答')
     q_response = api.chat(prompt=prompt, budget_tracker=budget_tracker)
-    return extract_list(q_response)
+    return extract_list(q_response.choices[0].message.content)
 
 
 def generate_subtopic(topic_name: str, generalization_index: float, generalization_basic: int, api_key: str, budget_tracker: BudgetTracker) -> List[
@@ -125,10 +120,10 @@ def generate_subtopic(topic_name: str, generalization_index: float, generalizati
     print("正在生成子主题......")
     api = ChatAPI(api_key=api_key)
 
-    return extract_list(api.chat(prompt=prompt, budget_tracker=budget_tracker), 'SubTopic')
+    return extract_list(api.chat(prompt=prompt, budget_tracker=budget_tracker).choices[0].message.content, 'SubTopic')
 
 
-def generate_answer(questions: List[str], api_key: str, budget_tracker: BudgetTracker, pbar) -> List[dict]:
+def generate_answer(questions: List[str], api_key: str, budget_tracker: BudgetTracker, pbar, output_path):
     api = ChatAPI(api_key=api_key, system_settings='你是一名知识渊博的助手，展示你的才华吧！')
     answers = []
     for question in questions:
@@ -144,10 +139,19 @@ def generate_answer(questions: List[str], api_key: str, budget_tracker: BudgetTr
         response = api.chat(prompt=prompt, budget_tracker=budget_tracker)
         answer = {
             "question": question,
-            "answer": response
+            "answer": response.choices[0].message.content
         }
         answers.append(answer)
         pbar.update(1)
-        if pbar.n == pbar.total:
+
+        tokens_used = response.usage['total_tokens']
+        budget_tracker.total_tokens_used += tokens_used
+        # 判断是否超过预算
+        if budget_tracker.is_budget_exceeded():
+            write_dict_list_to_file(data_list=answers, output_path=output_path)
             sys.exit(0)
-    return answers
+        if pbar.n == pbar.total:
+            write_dict_list_to_file(data_list=answers, output_path=output_path)
+            sys.exit(0)
+
+    write_dict_list_to_file(data_list=answers, output_path=output_path)

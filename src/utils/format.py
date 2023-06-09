@@ -25,7 +25,7 @@ class DataSetArguments:
     )
 
     number_of_dataset: int = field(
-        default=500,
+        default=100,
         metadata={"help": "The number of generated dataset. Default is 500"}
     )
 

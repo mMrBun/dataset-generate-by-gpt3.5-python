@@ -1,5 +1,3 @@
-import json
-import os
 from tqdm.auto import tqdm
 from utils import (
     generate_subtopic,
@@ -33,24 +31,15 @@ def main():
                                       budget_tracker=budget_tracker)
 
         questions = generate_question(topic_name=args.topic,
-                                      subTopic=sub_topic,
+                                      sub_topic=sub_topic,
                                       api_key=args.api_key,
                                       budget_tracker=budget_tracker)
 
-        answers = generate_answer(questions=questions,
-                                  api_key=args.api_key,
-                                  budget_tracker=budget_tracker,
-                                  pbar=pbar)
-
-        for item in answers:
-            question_dict = {
-                'instruction': item["question"],
-                'input': '',
-                'output': item["answer"]
-            }
-            os.makedirs(args.dataset_output_path, exist_ok=True)
-            with open(os.path.join(args.dataset_output_path, "dataset.jsonl"), "a", encoding="utf-8") as f:
-                f.write(json.dumps(question_dict, ensure_ascii=False) + '\n')
+        generate_answer(questions=questions,
+                        api_key=args.api_key,
+                        budget_tracker=budget_tracker,
+                        pbar=pbar,
+                        output_path=args.dataset_output_path)
 
 
 if __name__ == '__main__':
