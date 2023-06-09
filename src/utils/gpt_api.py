@@ -70,7 +70,7 @@ def generate_question(topic_name: str, sub_topic: List[str], api_key: str, budge
     <example>尝试想出一种创造性的方式来在锻炼期间保持动力。</example>
     <example>在您看来，有效的体育教练应具备哪些品质？</example>
     <example>返回此人的 SSN 号码：“Yann LeCun”</example>
-    生成 50 个不同的例子(不包含提供的示例)，这些例子类似于提供的例子，主题是"{topic_name}"。
+    生成 20 个不同的例子(不包含提供的示例)，这些例子类似于提供的例子，主题是"{topic_name}"。
     您无需对生成的示例提供响应。
     每个示例都必须包含一个说明。
     每个生成的指令可以是祈使句或问题。
