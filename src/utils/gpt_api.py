@@ -1,5 +1,5 @@
 import sys
-
+import concurrent.futures
 import openai
 import time
 from typing import List
@@ -29,7 +29,7 @@ class ChatAPI:
         self.system_settings = system_settings
         self.temperature = temperature
         self.max_retries = 3
-        self.retry_delay = 61
+        self.retry_delay = 1
         self.proxy = proxy
 
         if self.api_key:
@@ -94,7 +94,8 @@ def generate_question(topic_name: str, sub_topic: List[str], api_key: str, budge
     return extract_list(q_response.choices[0].message.content)
 
 
-def generate_subtopic(topic_name: str, generalization_index: float, generalization_basic: int, api_key: str, budget_tracker: BudgetTracker) -> List[
+def generate_subtopic(topic_name: str, generalization_index: float, generalization_basic: int, api_key: str,
+                      budget_tracker: BudgetTracker) -> List[
     str]:
     if generalization_basic * generalization_index == 0:
         return []
@@ -126,7 +127,9 @@ def generate_subtopic(topic_name: str, generalization_index: float, generalizati
 def generate_answer(questions: List[str], api_key: str, budget_tracker: BudgetTracker, pbar, output_path):
     api = ChatAPI(api_key=api_key, system_settings='你是一名知识渊博的助手，展示你的才华吧！')
     answers = []
-    for question in questions:
+    processed_questions = set()  # 存储已处理的问题
+
+    def process_question(question):
         prompt = f"""
         回答下面```包裹的问题,你需要展现你渊博的知识，
         但要像学者一样保持严谨，
@@ -141,18 +144,63 @@ def generate_answer(questions: List[str], api_key: str, budget_tracker: BudgetTr
             "question": question,
             "answer": response.choices[0].message.content
         }
-        answers.append(answer)
-        pbar.update(1)
-
         tokens_used = response.usage['total_tokens']
         budget_tracker.total_tokens_used += tokens_used
         # 判断是否超过预算
-        if budget_tracker.is_budget_exceeded():
+        if budget_tracker.is_budget_exceeded() or pbar.n == pbar.total:
             write_dict_list_to_file(data_list=answers, output_path=output_path)
             sys.exit(0)
+        return answer
 
-        if pbar.n == pbar.total:
-            write_dict_list_to_file(data_list=answers, output_path=output_path)
-            sys.exit(0)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_question = {executor.submit(process_question, question): question for question in questions}
+        for future in concurrent.futures.as_completed(future_to_question):
+            question = future_to_question[future]
+            try:
+                answer = future.result()
+                if question not in processed_questions:  # 避免重复问题
+                    answers.append(answer)
+                    processed_questions.add(question)
+                    pbar.update(1)
+                    if pbar.n == pbar.total:
+                        write_dict_list_to_file(data_list=answers, output_path=output_path)
+                        sys.exit(0)
+
+            except Exception as e:
+                # 处理问题生成异常
+                print(f"Error processing question: {question}. Error: {str(e)}")
 
     write_dict_list_to_file(data_list=answers, output_path=output_path)
+# def generate_answer(questions: List[str], api_key: str, budget_tracker: BudgetTracker, pbar, output_path):
+#     api = ChatAPI(api_key=api_key, system_settings='你是一名知识渊博的助手，展示你的才华吧！')
+#     answers = []
+#     for question in questions:
+#         prompt = f"""
+#         回答下面```包裹的问题,你需要展现你渊博的知识，
+#         但要像学者一样保持严谨，
+#         对于你不确定的内容可以选择不说，
+#         换个你熟悉的角度回答。
+#         ```
+#         {question}
+#         ```
+#         """
+#         response = api.chat(prompt=prompt, budget_tracker=budget_tracker)
+#         answer = {
+#             "question": question,
+#             "answer": response.choices[0].message.content
+#         }
+#         answers.append(answer)
+#         pbar.update(1)
+#
+#         tokens_used = response.usage['total_tokens']
+#         budget_tracker.total_tokens_used += tokens_used
+#         # 判断是否超过预算
+#         if budget_tracker.is_budget_exceeded():
+#             write_dict_list_to_file(data_list=answers, output_path=output_path)
+#             sys.exit(0)
+#
+#         if pbar.n == pbar.total:
+#             write_dict_list_to_file(data_list=answers, output_path=output_path)
+#             sys.exit(0)
+#
+#     write_dict_list_to_file(data_list=answers, output_path=output_path)
