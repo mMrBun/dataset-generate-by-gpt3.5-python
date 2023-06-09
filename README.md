@@ -49,3 +49,4 @@ job/simple_generate.bat $1 $2 $3 $4
 
 - [ ] Support specifying a budget and automatically stopping when exceeded.
 - [ ] Add a logging system to print progress, process parameters, and real-time cost to a local file.
+- [ ] Add comment
