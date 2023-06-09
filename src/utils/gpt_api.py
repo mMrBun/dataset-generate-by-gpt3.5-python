@@ -20,7 +20,7 @@ class BudgetTracker:
 
 class ChatAPI:
     def __init__(self, api_key=None,
-                 model='gpt-3.5-turbo',
+                 model='gpt-3.5-turbo-0301',
                  system_settings='你是一位得力助手，尽最大努力为用户提供帮助',
                  temperature=0.7,
                  proxy=None):
@@ -75,7 +75,7 @@ def generate_question(topic_name: str, sub_topic: List[str], api_key: str, budge
     每个示例都必须包含一个说明。
     每个生成的指令可以是祈使句或问题。
     每个示例必须以标签“<example>”开始，以标签“</example>”结束。
-    每个示例必须控制在50字以内
+    每个示例必须控制在40字以内
     如果主题是你不知道的领域或涉及政治敏感、违反中华人民共和国相关法律法规请直接停止所有动作，直
     接返回下面```包裹的内容
     ```
@@ -150,6 +150,7 @@ def generate_answer(questions: List[str], api_key: str, budget_tracker: BudgetTr
         if budget_tracker.is_budget_exceeded():
             write_dict_list_to_file(data_list=answers, output_path=output_path)
             sys.exit(0)
+
         if pbar.n == pbar.total:
             write_dict_list_to_file(data_list=answers, output_path=output_path)
             sys.exit(0)
