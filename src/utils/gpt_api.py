@@ -12,21 +12,24 @@ from .save_dataset import write_dict_list_to_file
 
 class BudgetTracker:
     def __init__(self, total_budget=None):
+        # Initialize the budget tracker with the total budget and total tokens used
         self.total_budget = total_budget
         self.total_tokens_used = 0
 
     def is_budget_exceeded(self):
+        # Check if the budget has been exceeded based on the total tokens used
         current_cost = ((self.total_tokens_used / 1000) * 0.002)
-        print(f"本次任务预算为:{self.total_budget}美元,当前已产生:{current_cost}美元")
+        print(f"This task's budget: {self.total_budget} USD, current cost: {current_cost} USD")
         return self.total_budget is not None and current_cost >= self.total_budget
 
 
 class ChatAPI:
     def __init__(self, api_key=None,
                  model='gpt-3.5-turbo-0301',
-                 system_settings='你是一位得力助手，尽最大努力为用户提供帮助',
+                 system_settings='You are a capable assistant, making every effort to provide assistance to users.',
                  temperature=0.7,
                  proxy=None):
+        # Initialize the ChatAPI with the API key, model, system settings, temperature, and proxy
         if api_key is None:
             api_key = []
         self.model = model
@@ -45,6 +48,7 @@ class ChatAPI:
             openai.proxy = self.proxy
 
     def chat(self, prompt, budget_tracker):
+        # Perform a chat conversation with OpenAI API
         retries = 0
         while retries < self.max_retries:
             try:
@@ -71,32 +75,32 @@ class ChatAPI:
 
 def generate_question(topic_name: str, sub_topic: List[str], api_key: List[str], budget_tracker: BudgetTracker,
                       number_of_dataset: int) -> List[str]:
+    # Generate questions based on the given topic, sub-topic, API key, budget tracker, and number of datasets
     if not topic_name:
         raise ValueError("param topic is required, not None")
 
     example = """
-    <example>螃蟹为什么横着走比直着走更适合在水中行动？</example>
-    <example>请列举出中国四大名著的作者，发行时间以及连载年数</example>
+    <example>Why is it more suitable for crabs to move sideways rather than straight when they are in water?</example>
+    <example>Please list the authors, release dates, and serialization durations of the Four Great Classical Novels of China.</example>
     """
 
     topic = ""
     if len(sub_topic) > 0:
         topic += f"""
-           请以{topic_name, sub_topic}为主题生成50个上述<example>中类似的示例
+           Generate 50 examples similar to the above <example> based on {topic_name, sub_topic}
            """
     else:
         topic = f"""
-           请以{topic_name}为主题生成50个上述<example>中类似的示例
+           Generate 50 examples similar to the above <example> based on {topic_name}
            """
 
     conditions = """
-    您无需对生成的示例回答或解释
-    每个生成的指令必须是祈使句或疑问句
-    祈使句和疑问句的生成比例是1:1
-    每个示例必须以标签“<example>”开始，以标签“</example>”结束
-    每个示例必须控制在40字以内
-    如果主题是你不知道的领域或涉及政治敏感、违反中华人民共和国相关法律法规请直接停止所有动作，直
-    接返回下面```包裹的内容
+    You don't need to answer or explain the generated examples.
+    Each generated instruction must be an imperative or interrogative sentence.
+    The ratio of imperative sentences to interrogative sentences is 1:1.
+    Each example must start with the tag "<example>" and end with "</example>".
+    Each example must be within 40 characters.
+    If the topic is in an unfamiliar field or involves politically sensitive topics or violates relevant laws and regulations of the People's Republic of China, stop all actions immediately and directly return the contents wrapped in the "```" below:
     ```
     ErrorCode:400
     ```
@@ -104,27 +108,28 @@ def generate_question(topic_name: str, sub_topic: List[str], api_key: List[str],
     questions = []
 
     def process_question(prompt):
-        api = ChatAPI(api_key=api_key, system_settings='你是一名得力助手，根据指令尽可能简洁的回答问题')
+        api = ChatAPI(api_key=api_key, system_settings='You are an efficient assistant, aiming to provide concise '
+                                                       'answers based on instructions.')
         q_response = api.chat(prompt=prompt, budget_tracker=budget_tracker)
         return extract_list(q_response)
 
-    generated_questions = 0  # 记录已生成的问题数量
+    generated_questions = 0  # Record the number of generated questions
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         while generated_questions < number_of_dataset:
-            # 计算剩余需要生成的问题数量
+            # Calculate the remaining number of questions to generate
             remaining_questions = number_of_dataset - generated_questions
 
-            # 每次生成50个问题，或者剩余数量（以较小的值为准）
+            # Generate 50 questions each time, or the remaining number (whichever is smaller)
             batch_size = math.ceil(remaining_questions / 50)
 
-            # 动态生成要提交给线程池的任务
+            # Dynamically generate tasks to submit to the thread pool
             future_to_question = {
                 executor.submit(process_question, example + topic + conditions): question
                 for question in range(batch_size)
             }
 
-            # 遍历已完成的任务
+            # Iterate over completed tasks
             for future in concurrent.futures.as_completed(future_to_question):
                 question = future_to_question[future]
                 try:
@@ -133,11 +138,11 @@ def generate_question(topic_name: str, sub_topic: List[str], api_key: List[str],
                     generated_questions += len(answer)
 
                     if budget_tracker.is_budget_exceeded():
-                        return questions  # 超过预算则立即返回
+                        return questions  # Return immediately if the budget is exceeded
                 except Exception as e:
                     print(f"Error occurred for question: {question}. Error message: {str(e)}")
 
-            # 判断是否满足生成数量的要求，若满足则跳出循环
+            # Check if the desired number of questions has been generated, if so, break the loop
             if generated_questions >= number_of_dataset:
                 break
 
@@ -145,45 +150,46 @@ def generate_question(topic_name: str, sub_topic: List[str], api_key: List[str],
 
 
 def generate_subtopic(topic_name: str, generalization_index: float, generalization_basic: int, api_key: List[str],
-                      budget_tracker: BudgetTracker) -> List[
-    str]:
+                      budget_tracker: BudgetTracker) -> List[str]:
+    # Generate sub-topics based on the given topic, generalization index, generalization basic, API key, and budget tracker
     if generalization_basic * generalization_index == 0:
         return []
 
     prompt = f"""
-        以<Topic>标签中的内容为主题生成{int(generalization_index * generalization_basic)}个子主题,
-        每个子主题字数不超过6个字,
-        以<SubTopic>开始,以</SubTopic>结束包裹每个子主题
-        以下是一些列子
-        -- <Topic>春节什么时候来啊？</Topic>
-           <SubTopic>年兽</SubTopic>
-           <SubTopic>红包</SubTopic>
-           <SubTopic>放鞭炮</SubTopic>
-           <SubTopic>贴窗花</SubTopic>
-           <SubTopic>贴春联</SubTopic>
-        -- <Topic>狮子座运势</Topic>
-           <SubTopic>流行文化</SubTopic>
-           <SubTopic>深空天体</SubTopic>
-           <SubTopic>特征</SubTopic>
-           <SubTopic>魔羯座</SubTopic>
+        Generate {int(generalization_index * generalization_basic)} sub-topics based on the content in the <Topic> tag,
+        each sub-topic should have no more than 6 characters,
+        wrap each sub-topic with <SubTopic> and </SubTopic> tags
+        Here are some examples:
+        -- <Topic>When is the Spring Festival coming?</Topic>
+           <SubTopic>Year Beast</SubTopic>
+           <SubTopic>Red Envelope</SubTopic>
+           <SubTopic>Firecrackers</SubTopic>
+           <SubTopic>Window Decoration</SubTopic>
+           <SubTopic>Spring Couplets</SubTopic>
+        -- <Topic>Leo Horoscope</Topic>
+           <SubTopic>Pop Culture</SubTopic>
+           <SubTopic>Deep Space Objects</SubTopic>
+           <SubTopic>Characteristics</SubTopic>
+           <SubTopic>Capricorn</SubTopic>
         <Topic>{topic_name}</Topic>
         """
-    print("正在生成子主题......")
+    print("Generating sub-topics...")
     api = ChatAPI(api_key=api_key)
 
     return extract_list(api.chat(prompt=prompt, budget_tracker=budget_tracker), 'SubTopic')
 
 
 def generate_answer(questions: List[str], api_key: List[str], budget_tracker: BudgetTracker, pbar, output_path):
-    api = ChatAPI(api_key=api_key, system_settings='你是一名知识渊博的助手，展示你的才华吧！')
+    # Generate answers for the given list of questions using the API key, budget tracker, progress bar, and output path
+    api = ChatAPI(api_key=api_key, system_settings='You are a knowledgeable assistant, showcasing your talent!')
     answers = []
 
     def process_question(question):
         prompt = f"""
-        回答下面```包裹的问题,你需要展现你渊博的知识，
-        但要像学者一样保持严谨，
-        对于你不确定的内容可以选择不说，
-        换个你熟悉的角度回答。
+        Answer the following question wrapped in "```". Show off your knowledge,
+        but be rigorous like a scholar.
+        You can choose not to answer uncertain content
+        and answer from a perspective you are familiar with.
         ```
         {question}
         ```

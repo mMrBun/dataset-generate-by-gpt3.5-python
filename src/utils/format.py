@@ -6,7 +6,7 @@ from typing import List
 
 def extract_list(answers, tag='example'):
     if "ErrorCode:400" in answers:
-        raise ValueError("主题内容不符合平台规范，请重试")
+        raise ValueError("The topic content does not comply with platform guidelines. Please try again.")
     pattern = rf"<{tag}>(.*?)</{tag}>"
     texts = re.findall(pattern, answers, re.DOTALL)
     return texts
