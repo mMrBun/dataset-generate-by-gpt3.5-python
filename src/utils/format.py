@@ -1,11 +1,12 @@
 import re
 from argparse import ArgumentParser
 from dataclasses import dataclass, field
+from typing import List
 
 
 def extract_list(answers, tag='example'):
     if "ErrorCode:400" in answers:
-        raise ValueError("主题不符合本平台规范，请修改后重试，三次违规账号将被冻结")
+        raise ValueError("主题内容不符合平台规范，请重试")
     pattern = rf"<{tag}>(.*?)</{tag}>"
     texts = re.findall(pattern, answers, re.DOTALL)
     return texts
@@ -15,8 +16,8 @@ def extract_list(answers, tag='example'):
 class DataSetArguments:
     generalization_index: float = field(
         default=0.0,
-        metadata={"help": "Generalization Index, the higher it is, the more diverse the dataset is. Default value is "
-                          "0.0"}
+        metadata={
+            "help": "Generalization Index, the higher it is, the more diverse the dataset is. Default value is 0.0"}
     )
 
     generalization_basic: int = field(
@@ -26,33 +27,33 @@ class DataSetArguments:
 
     number_of_dataset: int = field(
         default=100,
-        metadata={"help": "The number of generated dataset. Default is 500"}
+        metadata={"help": "The number of generated datasets. Default is 100"}
     )
 
     topic: str = field(
         default=None,
-        metadata={"Help": "Dataset topics. Default is None"}
+        metadata={"help": "Dataset topic. Default is None"}
     )
 
     dataset_output_path: str = field(
         default='data',
-        metadata={"Help": "Path to save dataset"}
+        metadata={"help": "Path to save the dataset"}
     )
 
     proxy: str = field(
         default=None,
         metadata={
-            "Help": "If you are unable to access OpenAI, please provide a proxy address. eg:http://127.0.0.1:7890"}
+            "help": "If you are unable to access OpenAI, please provide a proxy address. e.g., http://127.0.0.1:7890"}
     )
 
-    api_key: str = field(
+    api_key: List[str] = field(
         default=None,
-        metadata={"Help": "The OpenAI API-KEY"}
+        metadata={"help": "The OpenAI API-KEY"}
     )
 
     tokenBudget: float = field(
         default=1,
-        metadata={"Help": "Dataset topics. Default is None"}
+        metadata={"help": "Token budget. Default is 1"}
     )
 
 
@@ -64,7 +65,7 @@ def prepare_args() -> DataSetArguments:
     parser.add_argument('--topic', type=str, default=None)
     parser.add_argument('--dataset_output_path', type=str, default='data')
     parser.add_argument('--proxy', type=str, default=None)
-    parser.add_argument('--api_key', type=str, default=None)
+    parser.add_argument('--api_key', nargs='+', default=None)
     parser.add_argument('--tokenBudget', type=float, default=1)
     args = parser.parse_args()
     model_args = DataSetArguments(
