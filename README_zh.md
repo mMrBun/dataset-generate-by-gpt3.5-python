@@ -13,7 +13,7 @@
 受到[LaMini](https://github.com/mbzuai-nlp/LaMini-LM) 的论文启发写了这个项目，原文中的方式为爬取维基百科中的词条，经过删选条件筛选出符合条件的词条以及关联词条，之后使用下面的prompt对gpt3.5
 进行询问
 
-~~~ json
+~~~ xml
 <example>Try coming up with a creative way to stay motivated during a workout.</example>
 <example>In your opinion, what are the qualities of an effective sports coach?</example>
 <example>Return the SSN number for the person: "Yann LeCun"</example>
@@ -28,7 +28,7 @@ Each example must start with the label "<example>" and end with the label "</exa
 将得到的问题再次抛给gpt3.5得到回答，这就算一条数据，之后重复上述步骤就可以得到一个通识类的数据集。
 
 我稍微改变了一下主题引导式生成的方式，根据输入的一个主题使用下面的prompt得到相关的子主题，之后通过上述步骤完成数据集构建
-~~~ json
+~~~ xml
 以<Topic>标签中的内容为主题生成{int(generalization_index * generalization_basic)}个子主题,
         每个子主题字数不超过6个字,
         以<SubTopic>开始,以</SubTopic>结束包裹每个子主题
