@@ -13,7 +13,7 @@ Generate datasets in related domains using the OpenAI GPT3.5 API based on the pr
 
 This project was inspired by the paper of [LaMini](https://github.com/mbzuai-nlp/LaMini-LM). The original approach in the paper involved scraping entries from Wikipedia, filtering them based on certain criteria, and then using the prompts below to make inquiries to GPT3.5:
 
-~~~ json
+~~~ xml
 <example>Try coming up with a creative way to stay motivated during a workout.</example>
 <example>In your opinion, what are the qualities of an effective sports coach?</example>
 <example>Return the SSN number for the person: "Yann LeCun"</example>
@@ -28,7 +28,7 @@ The obtained questions are then presented to GPT3.5 to obtain answers, which con
 
 I have made a slight modification to the approach of prompt-guided generation. Based on the provided topic, I generate relevant subtopics using the prompt below, and then construct the dataset using the aforementioned steps:
 
-~~~ json
+~~~ xml
 Use the content within the <Topic> tags as the main topic to generate {int(generalization_index * generalization_basic)} subtopics.
 Each subtopic should have a maximum of 6 words.
 Wrap each subtopic with <SubTopic> at the beginning and </SubTopic> at the end.
