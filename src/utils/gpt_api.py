@@ -1,12 +1,14 @@
+import json
 import math
 import concurrent.futures
 import random
 import sys
+from datetime import timedelta
 
 import openai
 import time
 from typing import List
-from .format import extract_list
+from .format import extract_list, DataSetArguments
 from .save_dataset import write_dict_list_to_file
 
 
@@ -15,17 +17,17 @@ class BudgetTracker:
         # Initialize the budget tracker with the total budget and total tokens used
         self.total_budget = total_budget
         self.total_tokens_used = 0
+        self.current_cost = 0
 
     def is_budget_exceeded(self):
         # Check if the budget has been exceeded based on the total tokens used
-        current_cost = ((self.total_tokens_used / 1000) * 0.002)
-        print(f"This task's budget: {self.total_budget} USD, current cost: {current_cost} USD")
-        return self.total_budget is not None and current_cost >= self.total_budget
+        self.current_cost = ((self.total_tokens_used / 1000) * 0.002)
+        return self.total_budget is not None and self.current_cost >= self.total_budget
 
 
 class ChatAPI:
     def __init__(self, api_key=None,
-                 model='gpt-3.5-turbo-0301',
+                 model='gpt-3.5-turbo',
                  system_settings='You are a capable assistant, making every effort to provide assistance to users.',
                  temperature=0.7,
                  proxy=None):
@@ -73,10 +75,9 @@ class ChatAPI:
                     raise ValueError("Failed to get a valid response after maximum retries")
 
 
-def generate_question(topic_name: str, sub_topic: List[str], api_key: List[str], budget_tracker: BudgetTracker,
-                      number_of_dataset: int) -> List[str]:
+def generate_question(sub_topic: List[str], args: DataSetArguments, budget_tracker: BudgetTracker) -> List[str]:
     # Generate questions based on the given topic, sub-topic, API key, budget tracker, and number of datasets
-    if not topic_name:
+    if not args.topic:
         raise ValueError("param topic is required, not None")
 
     example = """
@@ -87,11 +88,11 @@ def generate_question(topic_name: str, sub_topic: List[str], api_key: List[str],
     topic = ""
     if len(sub_topic) > 0:
         topic += f"""
-           Generate 50 examples similar to the above <example> based on {topic_name, sub_topic}
+           Generate 50 examples similar to the above <example> based on {args.topic, sub_topic}
            """
     else:
         topic = f"""
-           Generate 50 examples similar to the above <example> based on {topic_name}
+           Generate 50 examples similar to the above <example> based on {args.topic}
            """
 
     conditions = """
@@ -108,17 +109,17 @@ def generate_question(topic_name: str, sub_topic: List[str], api_key: List[str],
     questions = []
 
     def process_question(prompt):
-        api = ChatAPI(api_key=api_key, system_settings='You are an efficient assistant, aiming to provide concise '
-                                                       'answers based on instructions.')
+        api = ChatAPI(api_key=args.api_key, system_settings='You are an efficient assistant, aiming to provide concise '
+                                                            'answers based on instructions.', proxy=args.proxy)
         q_response = api.chat(prompt=prompt, budget_tracker=budget_tracker)
         return extract_list(q_response)
 
     generated_questions = 0  # Record the number of generated questions
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        while generated_questions < number_of_dataset:
+        while generated_questions < args.number_of_dataset:
             # Calculate the remaining number of questions to generate
-            remaining_questions = number_of_dataset - generated_questions
+            remaining_questions = args.number_of_dataset - generated_questions
 
             # Generate 50 questions each time, or the remaining number (whichever is smaller)
             batch_size = math.ceil(remaining_questions / 50)
@@ -143,20 +144,21 @@ def generate_question(topic_name: str, sub_topic: List[str], api_key: List[str],
                     print(f"Error occurred for question: {question}. Error message: {str(e)}")
 
             # Check if the desired number of questions has been generated, if so, break the loop
-            if generated_questions >= number_of_dataset:
+            if generated_questions >= args.number_of_dataset:
                 break
 
     return questions
 
 
-def generate_subtopic(topic_name: str, generalization_index: float, generalization_basic: int, api_key: List[str],
+def generate_subtopic(args: DataSetArguments,
                       budget_tracker: BudgetTracker) -> List[str]:
-    # Generate sub-topics based on the given topic, generalization index, generalization basic, API key, and budget tracker
-    if generalization_basic * generalization_index == 0:
+    # Generate sub-topics based on the given topic, generalization index, generalization basic, API key, and budget
+    # tracker
+    if args.generalization_basic * args.generalization_index == 0:
         return []
 
     prompt = f"""
-        Generate {int(generalization_index * generalization_basic)} sub-topics based on the content in the <Topic> tag,
+        Generate {int(args.generalization_index * args.generalization_basic)} sub-topics based on the content in the <Topic> tag,
         each sub-topic should have no more than 6 characters,
         wrap each sub-topic with <SubTopic> and </SubTopic> tags
         Here are some examples:
@@ -171,17 +173,17 @@ def generate_subtopic(topic_name: str, generalization_index: float, generalizati
            <SubTopic>Deep Space Objects</SubTopic>
            <SubTopic>Characteristics</SubTopic>
            <SubTopic>Capricorn</SubTopic>
-        <Topic>{topic_name}</Topic>
+        <Topic>{args.topic}</Topic>
         """
-    print("Generating sub-topics...")
-    api = ChatAPI(api_key=api_key)
+    api = ChatAPI(api_key=args.api_key, proxy=args.proxy)
 
     return extract_list(api.chat(prompt=prompt, budget_tracker=budget_tracker), 'SubTopic')
 
 
-def generate_answer(questions: List[str], api_key: List[str], budget_tracker: BudgetTracker, pbar, output_path):
+def generate_answer(questions: List[str], budget_tracker: BudgetTracker, pbar, args: DataSetArguments):
     # Generate answers for the given list of questions using the API key, budget tracker, progress bar, and output path
-    api = ChatAPI(api_key=api_key, system_settings='You are a knowledgeable assistant, showcasing your talent!')
+    api = ChatAPI(api_key=args.api_key, system_settings='You are a knowledgeable assistant, showcasing your talent!',
+                  proxy=args.proxy)
     answers = []
 
     def process_question(question):
@@ -218,10 +220,21 @@ def generate_answer(questions: List[str], api_key: List[str], budget_tracker: Bu
                     answer = future.result()
                     answers.append(answer)
                     generated_answers += 1
+                    print((pbar.format_dict['elapsed'] / pbar.n) * (pbar.total - pbar.n))
+                    log_dict = {
+                        "current_number": pbar.n,
+                        "total_count": pbar.total,
+                        "percentage": pbar.n / pbar.total,
+                        "elapsed_time": str(timedelta(seconds=int(pbar.format_dict['elapsed']))),
+                        "remaining_time": str(timedelta(seconds=int((pbar.format_dict['elapsed'] / pbar.n) * (pbar.total - pbar.n)))),
+                        "budget": budget_tracker.total_budget,
+                        "current_cost": budget_tracker.current_cost
+                    }
+                    print(json.dumps(log_dict))
                     if budget_tracker.is_budget_exceeded() or pbar.n == pbar.total:
-                        write_dict_list_to_file(data_list=answers, output_path=output_path)
+                        write_dict_list_to_file(data_list=answers, output_path=args.dataset_output_path)
                         sys.exit(0)
                 except Exception as e:
                     print(f"Error occurred for question: {question}. Error message: {str(e)}")
 
-    write_dict_list_to_file(data_list=answers, output_path=output_path)
+    write_dict_list_to_file(data_list=answers, output_path=args.dataset_output_path)

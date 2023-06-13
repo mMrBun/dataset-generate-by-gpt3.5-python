@@ -16,3 +16,7 @@ def write_dict_list_to_file(data_list, output_path):
                 'output': item["answer"]
             }
             f.write(json.dumps(question_dict, ensure_ascii=False) + '\n')
+
+
+def log_generating_params(log_dict):
+    print(log_dict)
