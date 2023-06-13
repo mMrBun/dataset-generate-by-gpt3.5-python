@@ -72,5 +72,5 @@ job/simple_generate.sh
 Fill in the necessary parameters in the command line
 ![img.png](img/img.png)
 ~~~ sybase
---topic Why do crabs walk sideways --api_key sk-xxx --number_of_dataset 100
+--topic "Why is it more suitable for crabs to move sideways rather than straight when they are in water?" --api_key sk-xxx --number_of_dataset 100
 ~~~
