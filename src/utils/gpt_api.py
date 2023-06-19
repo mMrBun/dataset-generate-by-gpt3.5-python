@@ -24,7 +24,7 @@ class BudgetTracker:
         self.current_cost = ((self.total_tokens_used / 1000) * 0.002)
         return self.total_budget is not None and self.current_cost >= self.total_budget
 
-
+# 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
 class ChatAPI:
     def __init__(self, api_key=None,
                  model='gpt-3.5-turbo',
@@ -38,7 +38,7 @@ class ChatAPI:
         self.system_settings = system_settings
         self.temperature = temperature
         self.max_retries = 3
-        self.retry_delay = 1
+        self.retry_delay = 20
         self.proxy = proxy
 
         if len(api_key) > 0:
@@ -81,27 +81,27 @@ def generate_question(sub_topic: List[str], args: DataSetArguments, budget_track
         raise ValueError("param topic is required, not None")
 
     example = """
-    <example>Why is it more suitable for crabs to move sideways rather than straight when they are in water?</example>
-    <example>Please list the authors, release dates, and serialization durations of the Four Great Classical Novels of China.</example>
+    <example>在一个笼子里，有35只鸡和兔，共有94只脚。问鸡和兔各有多少只？</example>
+    <example>在一个笼子里，有60只鸡和兔，共有166只脚。问鸡和兔各有多少只？</example>
     """
 
     topic = ""
     if len(sub_topic) > 0:
         topic += f"""
-           Generate 50 examples similar to the above <example> based on {args.topic, sub_topic}
+           以主题{args.topic, sub_topic}生成50个类似上面<example>包裹的问题
            """
     else:
         topic = f"""
-           Generate 50 examples similar to the above <example> based on {args.topic}
+           以主题{args.topic}生成50个类似上面<example>包裹的问题
            """
 
     conditions = """
-    You don't need to answer or explain the generated examples.
-    Each generated instruction must be an imperative or interrogative sentence.
-    The ratio of imperative sentences to interrogative sentences is 1:1.
-    Each example must start with the tag "<example>" and end with "</example>".
-    Each example must be within 40 characters.
-    If the topic is in an unfamiliar field or involves politically sensitive topics or violates relevant laws and regulations of the People's Republic of China, stop all actions immediately and directly return the contents wrapped in the "```" below:
+    你无需对生成的示例进行答复或解释
+    每个生成的示例必须是祈使句或疑问句
+    祈使句和疑问句的生成比例要1:1
+    每个示例必须以<example>开始，以</example>结束.
+    每个示例控制在40字以内
+    如果主题涉及敏感话题或不符合中华人民共和国相关法律法规请立刻停止所有的生成并直接返回下面'''包裹的内容
     ```
     ErrorCode:400
     ```
@@ -158,21 +158,21 @@ def generate_subtopic(args: DataSetArguments,
         return []
 
     prompt = f"""
-        Generate {int(args.generalization_index * args.generalization_basic)} sub-topics based on the content in the <Topic> tag,
-        each sub-topic should have no more than 6 characters,
-        wrap each sub-topic with <SubTopic> and </SubTopic> tags
-        Here are some examples:
-        -- <Topic>When is the Spring Festival coming?</Topic>
-           <SubTopic>Year Beast</SubTopic>
-           <SubTopic>Red Envelope</SubTopic>
-           <SubTopic>Firecrackers</SubTopic>
-           <SubTopic>Window Decoration</SubTopic>
-           <SubTopic>Spring Couplets</SubTopic>
-        -- <Topic>Leo Horoscope</Topic>
-           <SubTopic>Pop Culture</SubTopic>
-           <SubTopic>Deep Space Objects</SubTopic>
-           <SubTopic>Characteristics</SubTopic>
-           <SubTopic>Capricorn</SubTopic>
+        根据<Topic>标签内容生成{int(args.generalization_index * args.generalization_basic)}个子主题,
+        每个子主题必须控制在6个字以内
+        每个子主题必须以<SubTopic>开始，</SubTopic>结束
+        下面是一些例子:
+        -- <Topic>春节什么时候到来?</Topic>
+           <SubTopic>年兽</SubTopic>
+           <SubTopic>红包</SubTopic>
+           <SubTopic>鞭炮</SubTopic>
+           <SubTopic>窗花</SubTopic>
+           <SubTopic>春联</SubTopic>
+        -- <Topic>狮子座的星座运势</Topic>
+           <SubTopic>流行文化</SubTopic>
+           <SubTopic>深空星系</SubTopic>
+           <SubTopic>特征</SubTopic>
+           <SubTopic>摩羯座</SubTopic>
         <Topic>{args.topic}</Topic>
         """
     api = ChatAPI(api_key=args.api_key, proxy=args.proxy)
@@ -182,16 +182,14 @@ def generate_subtopic(args: DataSetArguments,
 
 def generate_answer(questions: List[str], budget_tracker: BudgetTracker, pbar, args: DataSetArguments):
     # Generate answers for the given list of questions using the API key, budget tracker, progress bar, and output path
-    api = ChatAPI(api_key=args.api_key, system_settings='You are a knowledgeable assistant, showcasing your talent!',
+    api = ChatAPI(api_key=args.api_key, system_settings='你是一个知识丰富的助手，展示出你的才能！',
                   proxy=args.proxy)
     answers = []
 
     def process_question(question):
         prompt = f"""
-        Answer the following question wrapped in "```". Show off your knowledge,
-        but be rigorous like a scholar.
-        You can choose not to answer uncertain content
-        and answer from a perspective you are familiar with.
+        回答以下'''包裹的问题。展示你的知识，但要像学者一样严谨。
+        你可以选择不回答不确定的内容，并从你熟悉的角度回答。```
         ```
         {question}
         ```
