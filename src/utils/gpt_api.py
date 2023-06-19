@@ -24,7 +24,7 @@ class BudgetTracker:
         self.current_cost = ((self.total_tokens_used / 1000) * 0.002)
         return self.total_budget is not None and self.current_cost >= self.total_budget
 
-# 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
+
 class ChatAPI:
     def __init__(self, api_key=None,
                  model='gpt-3.5-turbo',
